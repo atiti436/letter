@@ -257,9 +257,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);}
       <button class="btn btn-ghost btn-sm" onclick="closeScanner()" style="width:auto;">✕ 關閉</button>
     </div>
     <div id="scannerWrap" style="position:relative;background:#000;border-radius:12px;overflow:hidden;">
-      <video id="scanVideo" playsinline autoplay muted style="width:100%;display:block;border-radius:12px;"></video>
-      <canvas id="scanCanvas" style="display:none;"></canvas>
-      <div id="scanLine" style="position:absolute;top:50%;left:10%;right:10%;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);opacity:0.8;"></div>
+      <div id="html5-reader"></div>
     </div>
     <div id="scannerStatus" style="text-align:center;color:var(--text2);font-size:13px;margin-top:8px;">對準條碼，自動辨識...</div>
   </div>
@@ -931,51 +929,78 @@ function clearAll() {
 }
 
 // ═══ CAMERA BARCODE SCANNER ═══
-let scanStream = null;
-let scanAnimFrame = null;
+// Uses html5-qrcode library loaded dynamically - works on Safari, Chrome, all browsers
+let html5Scanner = null;
+let scannerLibLoaded = false;
+
+function loadScannerLib() {
+  return new Promise((resolve, reject) => {
+    if (scannerLibLoaded) { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    script.onload = () => { scannerLibLoaded = true; resolve(); };
+    script.onerror = () => reject(new Error('無法載入掃描模組'));
+    document.head.appendChild(script);
+  });
+}
 
 function openScanner() {
   const overlay = document.getElementById('scannerOverlay');
-  overlay.classList.add('show');
-  
-  const video = document.getElementById('scanVideo');
   const statusEl = document.getElementById('scannerStatus');
-  statusEl.textContent = '啟動鏡頭中...';
+  const videoWrap = document.getElementById('scannerWrap');
+  overlay.classList.add('show');
+  statusEl.textContent = '載入掃描模組中...';
   
-  // Check if BarcodeDetector is available (Chrome, Edge, Android)
-  const hasBarcodeAPI = 'BarcodeDetector' in window;
-  
-  navigator.mediaDevices.getUserMedia({
-    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-  }).then(stream => {
-    scanStream = stream;
-    video.srcObject = stream;
-    video.play();
-    statusEl.textContent = '對準條碼，自動辨識...';
+  loadScannerLib().then(() => {
+    statusEl.textContent = '啟動鏡頭中...';
     
-    if (hasBarcodeAPI) {
-      // Use native BarcodeDetector
-      const detector = new BarcodeDetector({ formats: ['code_128','code_39','ean_13','ean_8','qr_code','data_matrix','codabar','itf','upc_a','upc_e'] });
-      function scanFrame() {
-        if (!scanStream) return;
-        detector.detect(video).then(barcodes => {
-          if (barcodes.length > 0) {
-            onBarcodeDetected(barcodes[0].rawValue);
-            return;
-          }
-          scanAnimFrame = requestAnimationFrame(scanFrame);
-        }).catch(() => {
-          scanAnimFrame = requestAnimationFrame(scanFrame);
-        });
-      }
-      video.onplaying = () => { scanFrame(); };
-    } else {
-      // Fallback: manual capture with canvas + no auto-detect
-      statusEl.textContent = '此瀏覽器不支援自動辨識，請改用手動輸入或換 Chrome 瀏覽器';
+    // html5-qrcode needs a div to render into
+    let readerId = 'html5-reader';
+    let readerDiv = document.getElementById(readerId);
+    if (!readerDiv) {
+      readerDiv = document.createElement('div');
+      readerDiv.id = readerId;
+      videoWrap.innerHTML = '';
+      videoWrap.appendChild(readerDiv);
     }
+    
+    html5Scanner = new Html5Qrcode(readerId);
+    
+    html5Scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: 280, height: 120 },
+        aspectRatio: 1.777,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+        ]
+      },
+      (decodedText) => {
+        // Success
+        onBarcodeDetected(decodedText);
+      },
+      (errorMessage) => {
+        // Scan error (normal, just means no barcode in frame)
+      }
+    ).then(() => {
+      statusEl.textContent = '對準條碼，自動辨識中...';
+    }).catch(err => {
+      console.error('Scanner start error:', err);
+      statusEl.textContent = '無法開啟鏡頭，請確認已授權相機權限';
+    });
+    
   }).catch(err => {
-    console.error('Camera error:', err);
-    statusEl.textContent = '無法開啟鏡頭，請確認已授權相機權限';
+    statusEl.textContent = '載入失敗，請確認網路連線，或直接手動輸入';
   });
 }
 
@@ -990,13 +1015,17 @@ function onBarcodeDetected(value) {
 
 function closeScanner() {
   document.getElementById('scannerOverlay').classList.remove('show');
-  if (scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
-  if (scanStream) {
-    scanStream.getTracks().forEach(t => t.stop());
-    scanStream = null;
+  if (html5Scanner) {
+    html5Scanner.stop().then(() => {
+      html5Scanner.clear();
+    }).catch(() => {});
+    html5Scanner = null;
   }
-  const video = document.getElementById('scanVideo');
-  video.srcObject = null;
+  // Restore video element for next use
+  const videoWrap = document.getElementById('scannerWrap');
+  videoWrap.innerHTML = `
+    <div id="html5-reader"></div>
+  `;
 }
 
 // ═══ INIT ═══
