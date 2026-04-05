@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>大樓收發系統</title>
+<style>
+:root {
+  --bg:#111;--surface:#1e1e1e;--surface2:#2a2a2a;--surface3:#333;
+  --accent:#4da6ff;--green:#4ecb71;--red:#ff4757;--orange:#ff9f43;
+  --text:#eee;--text2:#888;--text3:#555;--radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{font-family:'Noto Sans TC',-apple-system,'Helvetica Neue','PingFang TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--text);height:100%;overflow:hidden;touch-action:manipulation;}
+
+.tab-bar{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid #333;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+.tab-bar button{flex:1;border:none;background:none;color:var(--text2);padding:10px 0 8px;font-size:10px;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.tab-bar button.active{color:var(--accent);}
+.tab-bar button svg{width:22px;height:22px;}
+.tab-bar .badge{position:absolute;top:4px;right:50%;transform:translateX(16px);background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
+
+.page{position:absolute;top:0;left:0;right:0;bottom:56px;overflow-y:auto;padding:16px;display:none;-webkit-overflow-scrolling:touch;}
+.page.active{display:block;}
+.page-title{font-size:20px;font-weight:900;margin-bottom:12px;letter-spacing:-0.5px;}
+
+.card{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+.btn{border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;width:100%;transition:transform .1s;}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-ghost{background:transparent;border:1px solid #444;color:var(--text2);}
+.btn-sm{padding:10px 14px;font-size:13px;width:auto;}
+
+input[type="text"],input[type="date"],select,textarea{width:100%;background:var(--bg);border:1px solid #444;border-radius:10px;padding:12px;color:var(--text);font-size:15px;font-family:inherit;outline:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+::placeholder{color:#555;}
+.form-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block;font-weight:600;}
+.form-group{margin-bottom:12px;}
+
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{padding:10px 16px;border-radius:10px;background:var(--surface2);border:2px solid transparent;font-size:14px;font-weight:600;font-family:inherit;color:var(--text);cursor:pointer;}
+.chip.active{border-color:var(--accent);background:var(--accent);color:#fff;}
+.chip:active{transform:scale(0.95);}
+
+/* ── Receive ── */
+.unit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:200px;overflow-y:auto;margin-bottom:4px;}
+.unit-btn{background:var(--surface2);border:2px solid transparent;border-radius:var(--radius);padding:12px 8px;text-align:center;font-family:inherit;color:var(--text);font-size:14px;font-weight:700;cursor:pointer;position:relative;}
+.unit-btn.selected{border-color:var(--accent);background:rgba(77,166,255,.15);}
+.unit-btn:active{transform:scale(0.95);}
+.unit-btn .pending-dot{position:absolute;top:6px;right:6px;background:var(--orange);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.unit-btn .unit-sub{font-size:11px;color:var(--text2);margin-top:2px;font-weight:400;}
+
+.quick-name-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.name-chip{padding:8px 12px;border-radius:8px;background:var(--surface3);font-size:13px;color:var(--text);cursor:pointer;font-family:inherit;border:1px solid transparent;}
+.name-chip.active{border-color:var(--accent);background:rgba(77,166,255,.15);}
+
+.scan-status{font-size:12px;color:var(--green);margin-top:4px;min-height:18px;}
+
+/* ── Pickup ── */
+.pickup-unit{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer;}
+.pickup-unit:active{background:var(--surface2);}
+.pickup-header{display:flex;justify-content:space-between;align-items:center;}
+.pickup-label{font-weight:700;font-size:16px;}
+.pickup-count{background:var(--orange);color:#fff;font-size:13px;font-weight:700;padding:4px 10px;border-radius:8px;}
+.pickup-sub{font-size:12px;color:var(--text2);margin-top:4px;}
+
+/* ── Signature ── */
+.sig-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.sig-overlay.show{display:flex;}
+.sig-box{background:var(--surface);border-radius:20px;padding:20px;width:100%;max-width:500px;}
+.sig-title{font-size:18px;font-weight:900;margin-bottom:4px;}
+.sig-items{font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6;}
+.sig-canvas-wrap{background:#fff;border-radius:12px;margin-bottom:12px;position:relative;overflow:hidden;}
+.sig-canvas-wrap canvas{display:block;width:100%;height:150px;}
+.sig-canvas-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ccc;font-size:14px;pointer-events:none;}
+.sig-buttons{display:flex;gap:10px;}
+.sig-buttons button{flex:1;}
+
+/* ── Records ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:10px 6px;text-align:center;}
+.stat-value{font-size:22px;font-weight:900;}
+.stat-value.blue{color:var(--accent);}.stat-value.green{color:var(--green);}.stat-value.orange{color:var(--orange);}.stat-value.red{color:var(--red);}
+.stat-label{font-size:10px;color:var(--text2);margin-top:2px;}
+
+.record-item{background:var(--surface);border-radius:var(--radius);padding:12px;margin-bottom:6px;font-size:13px;}
+.record-row{display:flex;justify-content:space-between;align-items:center;}
+.record-unit{font-weight:700;}
+.record-time{color:var(--text2);font-size:12px;}
+.record-detail{color:var(--text2);margin-top:4px;}
+.record-status{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;}
+.status-pending{background:rgba(255,159,67,.2);color:var(--orange);}
+.status-picked{background:rgba(78,203,113,.2);color:var(--green);}
+
+.export-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.export-row button{flex:1;min-width:0;}
+
+.search-row{display:flex;gap:8px;margin-bottom:10px;}
+.search-row input,.search-row select{flex:1;}
+
+/* ── Settings ── */
+.unit-edit-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+.unit-edit-row input{flex:1;}
+.unit-edit-row .door-input{width:80px;}
+.unit-edit-row button{width:36px;height:42px;border:none;border-radius:8px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+
+/* ── Toast ── */
+.toast{position:fixed;top:40px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--green);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;z-index:500;transition:transform .3s;pointer-events:none;text-align:center;max-width:90%;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+.page::-webkit-scrollbar{width:0;}
+@media(min-width:600px){.unit-grid{grid-template-columns:repeat(4,1fr);}}
+
+/* ═══ PRINT STYLES ═══ */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body{background:#fff!important;color:#000!important;overflow:visible!important;font-size:11px;}
+  .tab-bar,.toast,.page,.sig-overlay{display:none!important;}
+  #printArea{display:block!important;padding:0;margin:0;}
+  .print-page-header{text-align:center;font-size:16px;font-weight:900;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #000;}
+  .print-summary{margin-bottom:8px;font-size:11px;padding:4px 0;text-align:center;}
+  .print-table{width:100%;border-collapse:collapse;font-size:10px;}
+  .print-table th,.print-table td{border:1px solid #666;padding:4px 6px;text-align:left;vertical-align:middle;}
+  .print-table th{background:#e8e8e8;font-weight:700;white-space:nowrap;}
+  .print-table td.sig-cell{text-align:center;padding:2px;}
+  .print-table td.sig-cell img{height:32px;}
+  .print-meta{font-size:9px;color:#666;text-align:right;margin-top:6px;}
+  .print-pending{margin-top:12px;page-break-inside:avoid;}
+  .print-pending-title{font-size:12px;font-weight:700;color:#c00;margin-bottom:4px;}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<div id="printArea" style="display:none;"></div>
+
+<!-- ═══ PAGE: RECEIVE ═══ -->
+<div class="page active" id="page-receive">
+  <div class="page-title">📦 收件登記</div>
+  <div class="form-group">
+    <label class="form-label">① 選擇門牌</label>
+    <input type="text" id="unitSearch" placeholder="搜尋門牌或公司名..." oninput="filterUnits()">
+    <div class="unit-grid" id="unitGrid" style="margin-top:8px;"></div>
+  </div>
+
+  <div id="step2" style="display:none">
+    <div class="form-group">
+      <label class="form-label">② 類型</label>
+      <div class="chip-row" id="typeChips">
+        <button class="chip active" onclick="selType(this,'掛號')">掛號</button>
+        <button class="chip" onclick="selType(this,'快遞')">快遞</button>
+        <button class="chip" onclick="selType(this,'包裹')">包裹</button>
+        <button class="chip" onclick="selType(this,'信件')">信件</button>
+        <button class="chip" onclick="selType(this,'其他')">其他</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">③ 追蹤碼（掃描槍 / 手機鏡頭 / 手打）</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="trackInput" placeholder="掃描或手動輸入" style="flex:1;">
+        <button class="btn btn-sm" onclick="openScanner()" style="background:var(--accent);color:#fff;width:auto;padding:10px 14px;font-size:20px;flex-shrink:0;">📷</button>
+      </div>
+      <div class="scan-status" id="scanStatus"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">④ 收件人</label>
+      <div class="quick-name-row" id="quickNames"></div>
+      <input type="text" id="recipientInput" placeholder="輸入收件人姓名" style="margin-top:6px;">
+    </div>
+    <div class="form-group">
+      <label class="form-label">備註（選填）</label>
+      <input type="text" id="noteInput" placeholder="例：外箱破損、冷藏、易碎">
+    </div>
+    <button class="btn btn-primary" onclick="submitReceive()" style="margin-bottom:8px;">登記收件</button>
+    <button class="btn btn-ghost" onclick="addMore()" style="margin-bottom:8px;">登記並繼續（同門牌）</button>
+    <button class="btn btn-ghost" onclick="resetReceive()">取消</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE: PICKUP ═══ -->
+<div class="page" id="page-pickup">
+  <div class="page-title">📝 領件簽收</div>
+  <div id="pickupList"></div>
+  <div id="pickupEmpty" class="card" style="text-align:center;color:var(--text2);display:none;">目前沒有待領件</div>
+</div>
+
+<!-- ═══ PAGE: RECORDS ═══ -->
+<div class="page" id="page-records">
+  <div class="page-title">📊 統計紀錄</div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-value blue" id="sTotal">0</div><div class="stat-label">總收件</div></div>
+    <div class="stat-card"><div class="stat-value green" id="sPicked">0</div><div class="stat-label">已領取</div></div>
+    <div class="stat-card"><div class="stat-value orange" id="sPending">0</div><div class="stat-label">待領取</div></div>
+    <div class="stat-card"><div class="stat-value red" id="sReg">0</div><div class="stat-label">掛號</div></div>
+  </div>
+  <div class="card" id="typeBreak" style="font-size:13px;"></div>
+
+  <div class="export-row">
+    <button class="btn btn-sm btn-primary" onclick="copyReport()">📋 複製報表</button>
+    <button class="btn btn-sm btn-ghost" onclick="printReceipts()">🖨 列印簽收單</button>
+    <button class="btn btn-sm btn-ghost" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+
+  <div class="search-row">
+    <input type="text" id="searchText" placeholder="搜尋追蹤碼/門牌/收件人" oninput="renderRecords()">
+    <input type="date" id="searchDate" onchange="renderRecords()" style="width:140px;flex:none;">
+  </div>
+  <div style="margin-bottom:10px;">
+    <select id="recordFilter" onchange="renderRecords()" style="padding:10px;">
+      <option value="all">全部</option>
+      <option value="pending">待領取</option>
+      <option value="picked">已領取</option>
+    </select>
+  </div>
+  <div id="recordList"></div>
+</div>
+
+<!-- ═══ PAGE: SETTINGS ═══ -->
+<div class="page" id="page-settings">
+  <div class="page-title">⚙️ 門牌管理</div>
+  <div class="card">
+    <label class="form-label">快速新增（格式：門牌, 公司名）</label>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="quickAdd" placeholder="例：8F-1, 滿帆洋行">
+      <button class="btn btn-primary btn-sm" onclick="quickAddUnit()" style="width:80px;flex-shrink:0;">新增</button>
+    </div>
+  </div>
+  <div class="card">
+    <label class="form-label">門牌清單（共 <span id="unitCount">0</span> 戶）</label>
+    <div id="unitEditList"></div>
+    <button class="btn btn-ghost" onclick="addEmptyUnit()" style="margin-top:8px;border-style:dashed;">＋ 新增門牌</button>
+  </div>
+  <div class="card">
+    <label class="form-label">資料管理</label>
+    <button class="btn btn-ghost" onclick="exportJSON()" style="margin-bottom:8px;">📤 匯出備份（JSON）</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()" style="margin-bottom:8px;">📥 匯入備份</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+    <button class="btn btn-danger btn-sm" onclick="clearAll()" style="margin-top:4px;">清除所有資料</button>
+  </div>
+  <div class="card" style="font-size:12px;color:var(--text2);line-height:1.7;">
+    💡 所有資料存在瀏覽器中，關掉不會消失。<br>
+    📋「複製報表」可直接貼 LINE 群組。<br>
+    🖨「列印簽收單」會產生含簽名的紙本，可印出來夾資料夾留底。<br>
+    ⬇「CSV」可用 Excel 開啟，不會亂碼。<br>
+    建議每天收攤後匯出備份。
+  </div>
+</div>
+
+<!-- ═══ CAMERA SCANNER MODAL ═══ -->
+<div class="sig-overlay" id="scannerOverlay">
+  <div class="sig-box" style="padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <b style="font-size:16px;">📷 掃描條碼</b>
+      <button class="btn btn-ghost btn-sm" onclick="closeScanner()" style="width:auto;">✕ 關閉</button>
+    </div>
+    <div id="scannerWrap" style="position:relative;background:#000;border-radius:12px;overflow:hidden;">
+      <video id="scanVideo" playsinline autoplay muted style="width:100%;display:block;border-radius:12px;"></video>
+      <canvas id="scanCanvas" style="display:none;"></canvas>
+      <div id="scanLine" style="position:absolute;top:50%;left:10%;right:10%;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);opacity:0.8;"></div>
+    </div>
+    <div id="scannerStatus" style="text-align:center;color:var(--text2);font-size:13px;margin-top:8px;">對準條碼，自動辨識...</div>
+  </div>
+</div>
+
+<!-- ═══ SIGNATURE MODAL ═══ -->
+<div class="sig-overlay" id="sigOverlay">
+  <div class="sig-box">
+    <div class="sig-title" id="sigTitle"></div>
+    <div class="sig-items" id="sigItems"></div>
+    <div class="sig-canvas-wrap">
+      <canvas id="sigCanvas"></canvas>
+      <div class="sig-canvas-hint" id="sigHint">請在此簽名</div>
+    </div>
+    <div class="sig-buttons">
+      <button class="btn btn-ghost" onclick="closeSig()">取消</button>
+      <button class="btn btn-ghost" onclick="clearSig()">重簽</button>
+      <button class="btn btn-success" onclick="confirmPickup()">確認簽收</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB BAR ═══ -->
+<div class="tab-bar">
+  <button class="active" onclick="switchTab('receive')" id="tab-receive">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    收件
+  </button>
+  <button onclick="switchTab('pickup')" id="tab-pickup" style="position:relative;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+    簽收
+    <span class="badge" id="pickupBadge" style="display:none">0</span>
+  </button>
+  <button onclick="switchTab('records')" id="tab-records">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+    統計
+  </button>
+  <button onclick="switchTab('settings')" id="tab-settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    設定
+  </button>
+</div>
+
+<script>
+// ═══ HELPERS (must be before state init) ═══
+function safeGet(key) { try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; } }
+function safeSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+
+// ═══ STATE ═══
+const DEFAULT_UNITS = [
+  {door:'1F-1',name:'管理室',contacts:[]},
+  {door:'2F-1',name:'王先生',contacts:['王先生']},
+  {door:'3F-1',name:'好好設計',contacts:['林小姐','陳先生']},
+  {door:'5F-2',name:'大成會計',contacts:['張會計','李小姐']},
+  {door:'8F-1',name:'滿帆洋行',contacts:['黃先生']},
+  {door:'8F-3',name:'天天科技',contacts:['蔡小姐','吳先生']},
+  {door:'12F-1',name:'宏遠法律',contacts:['周律師']},
+];
+
+let units = safeGet('mr2_units') || JSON.parse(JSON.stringify(DEFAULT_UNITS));
+let packages = safeGet('mr2_pkgs') || [];
+let selUnit = null;
+let sigDoor = null;
+let sigHasDraw = false;
+let sigCtx = null;
+let sigDrawing = false;
+
+// ═══ MORE HELPERS ═══
+const save = () => { safeSet('mr2_units', units); safeSet('mr2_pkgs', packages); };
+const today = () => new Date().toLocaleDateString('zh-TW');
+const todayPkgs = () => packages.filter(p => new Date(p.receivedAt).toLocaleDateString('zh-TW') === today());
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString('zh-TW',{hour12:false,hour:'2-digit',minute:'2-digit'});
+const fmtDate = (iso) => new Date(iso).toLocaleDateString('zh-TW');
+const fmtDateTime = (iso) => new Date(iso).toLocaleString('zh-TW',{hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], {type});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta);
+  ta.select(); document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+// Generate serial number: YYYYMMDD-NNN
+function genSerial() {
+  const d = new Date();
+  const prefix = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  const todayCount = packages.filter(p => {
+    const pd = new Date(p.receivedAt);
+    return pd.toLocaleDateString('zh-TW') === d.toLocaleDateString('zh-TW');
+  }).length;
+  return `${prefix}-${String(todayCount + 1).padStart(3,'0')}`;
+}
+
+// ═══ TABS ═══
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab==='pickup') renderPickup();
+  if (tab==='records') renderRecords();
+  if (tab==='settings') renderSettings();
+  if (tab==='receive') { renderUnitGrid(); resetReceive(); }
+}
+
+function updateBadge() {
+  const n = todayPkgs().filter(p => p.status==='pending').length;
+  const b = document.getElementById('pickupBadge');
+  b.style.display = n > 0 ? 'flex' : 'none';
+  b.textContent = n;
+}
+
+// ═══ RECEIVE ═══
+function renderUnitGrid() {
+  const q = (document.getElementById('unitSearch').value||'').toLowerCase();
+  const grid = document.getElementById('unitGrid');
+  const pending = {};
+  todayPkgs().filter(p => p.status==='pending').forEach(p => { pending[p.door] = (pending[p.door]||0)+1; });
+  
+  const filtered = units.filter(u => u.door.toLowerCase().includes(q) || u.name.toLowerCase().includes(q));
+  grid.innerHTML = filtered.map(u => {
+    const n = pending[u.door]||0;
+    const sel = selUnit && selUnit.door === u.door ? 'selected':'';
+    return `<button class="unit-btn ${sel}" onclick="selectUnit('${u.door}')">
+      ${n>0?`<span class="pending-dot">${n}</span>`:''}
+      ${u.door}<div class="unit-sub">${u.name}</div>
+    </button>`;
+  }).join('');
+}
+
+function filterUnits() { renderUnitGrid(); }
+
+function selectUnit(door) {
+  selUnit = units.find(u => u.door===door);
+  renderUnitGrid();
+  document.getElementById('step2').style.display = 'block';
+  const qn = document.getElementById('quickNames');
+  qn.innerHTML = selUnit.contacts.length > 0
+    ? selUnit.contacts.map(n => `<button class="name-chip" onclick="pickName(this,'${n}')">${n}</button>`).join('')
+    : '<span style="font-size:12px;color:var(--text3)">尚無常用收件人</span>';
+  document.getElementById('recipientInput').value = '';
+  document.getElementById('trackInput').value = '';
+  document.getElementById('noteInput').value = '';
+  document.getElementById('scanStatus').textContent = '';
+  document.getElementById('trackInput').focus();
+}
+
+let _selType = '掛號';
+function selType(el, type) {
+  _selType = type;
+  document.querySelectorAll('#typeChips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function pickName(el, name) {
+  document.querySelectorAll('#quickNames .name-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('recipientInput').value = name;
+}
+
+// ── Scanner: listen for Enter in tracking input ──
+document.getElementById('trackInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = this.value.trim();
+    if (val) {
+      document.getElementById('scanStatus').textContent = `✓ 已掃描：${val}`;
+      // Auto-focus recipient
+      document.getElementById('recipientInput').focus();
+    }
+  }
+});
+
+function doSubmit(keepUnit) {
+  if (!selUnit) return;
+  const recipient = document.getElementById('recipientInput').value.trim();
+  const tracking = document.getElementById('trackInput').value.trim();
+  const note = document.getElementById('noteInput').value.trim();
+
+  const pkg = {
+    id: Date.now()+'_'+Math.random().toString(36).substr(2,4),
+    serial: genSerial(),
+    door: selUnit.door,
+    unitName: selUnit.name,
+    type: _selType,
+    tracking, recipient, note,
+    status: 'pending',
+    receivedAt: new Date().toISOString(),
+    pickedAt: null,
+    pickedBy: '',
+    signature: null,
+  };
+  packages.push(pkg);
+  save();
+
+  if (recipient && !selUnit.contacts.includes(recipient)) {
+    selUnit.contacts.push(recipient);
+    save();
+  }
+
+  showToast(`✓ ${selUnit.door} ${_selType} 已登記（${pkg.serial}）`);
+  updateBadge();
+
+  if (keepUnit) {
+    // Same unit, clear fields, ready for next
+    document.getElementById('trackInput').value = '';
+    document.getElementById('recipientInput').value = '';
+    document.getElementById('noteInput').value = '';
+    document.getElementById('scanStatus').textContent = '';
+    document.querySelectorAll('#quickNames .name-chip').forEach(c => c.classList.remove('active'));
+    document.getElementById('trackInput').focus();
+    renderUnitGrid();
+  } else {
+    resetReceive();
+    renderUnitGrid();
+  }
+}
+
+function submitReceive() { doSubmit(false); }
+function addMore() { doSubmit(true); }
+
+function resetReceive() {
+  selUnit = null;
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('unitSearch').value = '';
+  renderUnitGrid();
+}
+
+// ═══ PICKUP ═══
+function renderPickup() {
+  const pending = {};
+  todayPkgs().filter(p => p.status==='pending').forEach(p => { pending[p.door] = (pending[p.door]||0)+1; });
+  const doors = Object.keys(pending).sort();
+  const list = document.getElementById('pickupList');
+  const empty = document.getElementById('pickupEmpty');
+
+  if (doors.length===0) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  list.innerHTML = doors.map(door => {
+    const unit = units.find(u=>u.door===door);
+    const pkgs = todayPkgs().filter(p=>p.door===door&&p.status==='pending');
+    const detail = pkgs.map(p=>`${p.type}${p.recipient?'('+p.recipient+')':''}`).join('、');
+    return `<div class="pickup-unit" onclick="openSig('${door}')">
+      <div class="pickup-header">
+        <span class="pickup-label">${door}　${unit?unit.name:''}</span>
+        <span class="pickup-count">${pending[door]} 件</span>
+      </div>
+      <div class="pickup-sub">${detail}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ SIGNATURE ═══
+function openSig(door) {
+  sigDoor = door; sigHasDraw = false;
+  const unit = units.find(u=>u.door===door);
+  const pkgs = todayPkgs().filter(p=>p.door===door&&p.status==='pending');
+  document.getElementById('sigTitle').textContent = `${door}　${unit?unit.name:''}`;
+  document.getElementById('sigItems').innerHTML = pkgs.map(p =>
+    `• ${p.serial}　${p.type}　${p.tracking||'無追蹤碼'}　${p.recipient||''}`
+  ).join('<br>');
+  document.getElementById('sigHint').style.display = 'block';
+  document.getElementById('sigOverlay').classList.add('show');
+  setTimeout(initCanvas, 100);
+}
+
+function initCanvas() {
+  const canvas = document.getElementById('sigCanvas');
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.offsetWidth;
+  canvas.height = 150;
+  sigCtx = canvas.getContext('2d');
+  sigCtx.strokeStyle = '#333'; sigCtx.lineWidth = 2.5;
+  sigCtx.lineCap = 'round'; sigCtx.lineJoin = 'round';
+
+  const getPos = (e, r) => {
+    const t = e.touches ? e.touches[0] : e;
+    return [t.clientX - r.left, t.clientY - r.top];
+  };
+  const start = (e) => {
+    e.preventDefault(); sigDrawing=true; sigHasDraw=true;
+    document.getElementById('sigHint').style.display='none';
+    const [x,y] = getPos(e, canvas.getBoundingClientRect());
+    sigCtx.beginPath(); sigCtx.moveTo(x,y);
+  };
+  const move = (e) => {
+    e.preventDefault(); if(!sigDrawing) return;
+    const [x,y] = getPos(e, canvas.getBoundingClientRect());
+    sigCtx.lineTo(x,y); sigCtx.stroke();
+  };
+  const end = () => { sigDrawing=false; };
+
+  canvas.ontouchstart=start; canvas.ontouchmove=move; canvas.ontouchend=end;
+  canvas.onmousedown=start; canvas.onmousemove=move; canvas.onmouseup=end;
+}
+
+function clearSig() {
+  sigCtx.clearRect(0, 0, document.getElementById('sigCanvas').width, 150);
+  sigHasDraw=false; document.getElementById('sigHint').style.display='block';
+}
+
+function closeSig() {
+  document.getElementById('sigOverlay').classList.remove('show');
+  sigDoor=null;
+}
+
+function confirmPickup() {
+  if (!sigHasDraw) { showToast('請先簽名'); return; }
+  const sigData = document.getElementById('sigCanvas').toDataURL('image/png');
+  const now = new Date().toISOString();
+  
+  // Generate signature receipt ID
+  const sigReceipts = safeGet('mr2_sigreceipts') || [];
+  const sigCount = sigReceipts.filter(r => fmtDate(r.signedAt) === today()).length;
+  const sigId = `SIG-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${String(sigCount+1).padStart(3,'0')}`;
+  
+  // Collect package IDs being signed
+  const signedPkgIds = [];
+  let count = 0;
+  packages.forEach(p => {
+    if (p.door===sigDoor && p.status==='pending' && fmtDate(p.receivedAt)===today()) {
+      p.status='picked'; p.pickedAt=now; p.sigReceiptId=sigId; count++;
+      signedPkgIds.push(p.id);
+    }
+  });
+
+  // Create signature receipt
+  const unit = units.find(u=>u.door===sigDoor);
+  const receipt = {
+    id: sigId,
+    door: sigDoor,
+    unitName: unit ? unit.name : '',
+    packageIds: signedPkgIds,
+    packages: packages.filter(p => signedPkgIds.includes(p.id)).map(p => ({
+      serial: p.serial, type: p.type, tracking: p.tracking,
+      recipient: p.recipient, note: p.note, receivedAt: p.receivedAt
+    })),
+    signature: sigData,
+    signedAt: now,
+    itemCount: count,
+  };
+  sigReceipts.push(receipt);
+  safeSet('mr2_sigreceipts', sigReceipts);
+
+  save(); closeSig(); renderPickup(); updateBadge();
+  showToast(`✓ ${sigDoor} ${count} 件已簽收（${sigId}）`);
+}
+
+// ═══ RECORDS ═══
+function getFilteredPkgs() {
+  const searchDate = document.getElementById('searchDate').value;
+  const searchText = (document.getElementById('searchText').value||'').toLowerCase();
+  const filter = document.getElementById('recordFilter').value;
+
+  let list = packages;
+  
+  // Date filter
+  if (searchDate) {
+    const d = new Date(searchDate).toLocaleDateString('zh-TW');
+    list = list.filter(p => fmtDate(p.receivedAt) === d);
+  } else {
+    // Default: today
+    list = list.filter(p => fmtDate(p.receivedAt) === today());
+  }
+
+  // Text search
+  if (searchText) {
+    list = list.filter(p =>
+      (p.tracking||'').toLowerCase().includes(searchText) ||
+      p.door.toLowerCase().includes(searchText) ||
+      (p.recipient||'').toLowerCase().includes(searchText) ||
+      p.unitName.toLowerCase().includes(searchText) ||
+      (p.serial||'').toLowerCase().includes(searchText)
+    );
+  }
+
+  // Status filter
+  if (filter==='pending') list = list.filter(p=>p.status==='pending');
+  if (filter==='picked') list = list.filter(p=>p.status==='picked');
+
+  return list.sort((a,b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+}
+
+function renderRecords() {
+  const tp = todayPkgs();
+  const picked = tp.filter(p=>p.status==='picked');
+  const pending = tp.filter(p=>p.status==='pending');
+
+  document.getElementById('sTotal').textContent = tp.length;
+  document.getElementById('sPicked').textContent = picked.length;
+  document.getElementById('sPending').textContent = pending.length;
+  document.getElementById('sReg').textContent = tp.filter(p=>p.type==='掛號').length;
+
+  const types = {};
+  tp.forEach(p => { types[p.type]=(types[p.type]||0)+1; });
+  document.getElementById('typeBreak').innerHTML =
+    Object.entries(types).map(([t,c])=>`<span style="margin-right:14px;">${t} <b>${c}</b></span>`).join('') || '<span style="color:var(--text3)">今日無紀錄</span>';
+
+  const list = getFilteredPkgs();
+  document.getElementById('recordList').innerHTML = list.length===0
+    ? '<div style="text-align:center;color:var(--text3);padding:20px;">無紀錄</div>'
+    : list.map(p => {
+      const sc = p.status==='picked' ? 'status-picked' : 'status-pending';
+      const st = p.status==='picked' ? '已領' : '待領';
+      return `<div class="record-item">
+        <div class="record-row">
+          <span class="record-unit">${p.door} ${p.unitName}</span>
+          <span class="record-status ${sc}">${st}</span>
+        </div>
+        <div class="record-detail">
+          ${p.serial||''}　${fmtTime(p.receivedAt)}　${p.type}　${p.tracking||''}　${p.recipient||''}
+          ${p.note?'<br>📝 '+p.note:''}
+          ${p.pickedAt?'<br>領取：'+fmtDateTime(p.pickedAt)+(p.sigReceiptId?' （'+p.sigReceiptId+'）':''):''}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// ── Copy Report ──
+function copyReport() {
+  const tp = todayPkgs();
+  if (tp.length===0) { showToast('今日無紀錄'); return; }
+  const picked = tp.filter(p=>p.status==='picked').length;
+  const pending = tp.filter(p=>p.status==='pending').length;
+  const types = {};
+  tp.forEach(p=>{types[p.type]=(types[p.type]||0)+1;});
+
+  let text = `📦 ${today()} 收發日報\n─────────────\n`;
+  text += `總收件：${tp.length}　已領：${picked}　待領：${pending}\n`;
+  text += Object.entries(types).map(([t,c])=>`${t}:${c}`).join(' ') + '\n─────────────\n';
+
+  const byUnit = {};
+  tp.forEach(p => { if(!byUnit[p.door]) byUnit[p.door]=[]; byUnit[p.door].push(p); });
+  Object.entries(byUnit).sort().forEach(([door,pkgs]) => {
+    const unit = units.find(u=>u.door===door);
+    text += `\n📍 ${door} ${unit?unit.name:''}\n`;
+    pkgs.forEach(p => {
+      const s = p.status==='picked'?'✅':'⏳';
+      text += `  ${s} ${fmtTime(p.receivedAt)} ${p.type} ${p.tracking||''} ${p.recipient||''}\n`;
+    });
+  });
+
+  if (pending>0) {
+    text += '\n⚠️ 待領件：\n';
+    tp.filter(p=>p.status==='pending').forEach(p => {
+      text += `  ${p.door} ${p.type} ${p.recipient||''}\n`;
+    });
+  }
+
+  navigator.clipboard.writeText(text).then(()=>showToast('已複製，可貼到 LINE')).catch(()=>{fallbackCopy(text);showToast('已複製');});
+}
+
+// ── CSV Export ──
+function exportCSV() {
+  const list = getFilteredPkgs();
+  if (list.length===0) { showToast('無紀錄'); return; }
+  let csv = '編號,門牌,公司/住戶,類型,追蹤碼,收件人,狀態,收件時間,領取時間,備註\n';
+  list.forEach(p => {
+    csv += `${p.serial||''},"${p.door}","${p.unitName}","${p.type}","${p.tracking||''}","${p.recipient||''}",${p.status==='picked'?'已領':'待領'},${fmtDateTime(p.receivedAt)},${p.pickedAt?fmtDateTime(p.pickedAt):''},"${(p.note||'').replace(/"/g,'""')}"\n`;
+  });
+  downloadFile('\uFEFF'+csv, `收發紀錄_${today().replace(/\//g,'')}.csv`, 'text/csv;charset=utf-8');
+  showToast('CSV 已下載');
+}
+
+// ═══ PRINT RECEIPTS ═══
+function printReceipts() {
+  const tp = todayPkgs();
+  if (tp.length===0) { showToast('今日無紀錄'); return; }
+  
+  const sigReceipts = (safeGet('mr2_sigreceipts') || []).filter(r => fmtDate(r.signedAt) === today());
+  const pending = tp.filter(p=>p.status==='pending');
+  const picked = tp.filter(p=>p.status==='picked');
+  const types = {};
+  tp.forEach(p=>{types[p.type]=(types[p.type]||0)+1;});
+  const typeStr = Object.entries(types).map(([t,c])=>`${t}:${c}`).join('　');
+
+  // Build a flat list of rows, ordered by sigReceipt, with rowspan info
+  // Each row: { pkg data, isFirstOfBatch, batchSize, signature }
+  const rows = [];
+  
+  // First: all picked items grouped by signature receipt
+  sigReceipts.forEach(receipt => {
+    receipt.packages.forEach((p, i) => {
+      rows.push({
+        serial: p.serial, door: receipt.door, unitName: receipt.unitName,
+        type: p.type, tracking: p.tracking, recipient: p.recipient,
+        note: p.note, receivedAt: p.receivedAt,
+        pickedAt: receipt.signedAt, sigId: receipt.id,
+        isFirstOfBatch: i === 0,
+        batchSize: receipt.packages.length,
+        signature: receipt.signature,
+        status: 'picked'
+      });
+    });
+  });
+
+  // Then: any picked items not in a sigReceipt (legacy data)
+  picked.filter(p => !p.sigReceiptId).forEach(p => {
+    rows.push({
+      serial: p.serial, door: p.door, unitName: p.unitName,
+      type: p.type, tracking: p.tracking, recipient: p.recipient,
+      note: p.note, receivedAt: p.receivedAt,
+      pickedAt: p.pickedAt, sigId: '-',
+      isFirstOfBatch: true, batchSize: 1, signature: null,
+      status: 'picked'
+    });
+  });
+
+  let html = '';
+  
+  html += `<div class="print-page-header">
+    收發簽收紀錄　${today()}
+  </div>`;
+  
+  html += `<div class="print-summary">
+    總收件：<b>${tp.length}</b>　
+    已領取：<b>${picked.length}</b>　
+    待領取：<b>${pending.length}</b>　
+    ${typeStr}
+  </div>`;
+
+  // Main table
+  if (rows.length > 0) {
+    html += `<table class="print-table">
+      <tr>
+        <th style="width:24px;">#</th>
+        <th>門牌</th>
+        <th>公司/住戶</th>
+        <th>類型</th>
+        <th>追蹤碼</th>
+        <th>收件人</th>
+        <th>收件</th>
+        <th>領取</th>
+        <th>備註</th>
+        <th style="width:90px;">簽收</th>
+      </tr>`;
+    
+    rows.forEach((r, i) => {
+      const isLastOfBatch = r.isFirstOfBatch ? r.batchSize === 1 : 
+        (i + 1 >= rows.length || rows[i + 1].isFirstOfBatch);
+      
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${r.door}</td>
+        <td>${r.unitName}</td>
+        <td>${r.type}</td>
+        <td>${r.tracking||'-'}</td>
+        <td>${r.recipient||'-'}</td>
+        <td>${fmtTime(r.receivedAt)}</td>
+        <td>${r.pickedAt ? fmtTime(r.pickedAt) : '-'}</td>
+        <td>${r.note||''}</td>
+        <td class="sig-cell">${isLastOfBatch ? (r.signature ? `<img src="${r.signature}">` : '-') : '↓'}</td>
+      </tr>`;
+      html += `</tr>`;
+    });
+    
+    html += `</table>`;
+  }
+
+  // Pending section
+  if (pending.length > 0) {
+    html += `<div class="print-pending">
+      <div class="print-pending-title">⚠ 待領取（${pending.length} 件）</div>
+      <table class="print-table">
+        <tr><th>#</th><th>門牌</th><th>公司/住戶</th><th>類型</th><th>追蹤碼</th><th>收件人</th><th>收件時間</th><th>備註</th></tr>
+        ${pending.map((p,i) => `<tr>
+          <td>${i+1}</td>
+          <td>${p.door}</td>
+          <td>${p.unitName}</td>
+          <td>${p.type}</td>
+          <td>${p.tracking||'-'}</td>
+          <td>${p.recipient||'-'}</td>
+          <td>${fmtTime(p.receivedAt)}</td>
+          <td>${p.note||''}</td>
+        </tr>`).join('')}
+      </table>
+    </div>`;
+  }
+
+  html += `<div class="print-meta">列印時間：${new Date().toLocaleString('zh-TW',{hour12:false})}　收發系統自動產生</div>`;
+
+  const printArea = document.getElementById('printArea');
+  printArea.innerHTML = html;
+  printArea.style.display = 'block';
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      printArea.style.display = 'none';
+      document.querySelectorAll('.page').forEach(p => p.style.display = '');
+      switchTab('records');
+    }, 500);
+  }, 300);
+}
+
+// ═══ SETTINGS ═══
+function renderSettings() {
+  document.getElementById('unitCount').textContent = units.length;
+  document.getElementById('unitEditList').innerHTML = units.map((u,i) => `
+    <div class="unit-edit-row">
+      <input class="door-input" type="text" value="${u.door}" onchange="updUnit(${i},'door',this.value)" placeholder="門牌">
+      <input type="text" value="${u.name}" onchange="updUnit(${i},'name',this.value)" placeholder="公司/住戶">
+      <button style="background:var(--red);color:#fff;" onclick="delUnit(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function updUnit(i,f,v) { units[i][f]=v; save(); }
+function delUnit(i) {
+  if(!confirm(`刪除 ${units[i].door}？`)) return;
+  units.splice(i,1); save(); renderSettings();
+}
+function addEmptyUnit() {
+  units.push({door:'',name:'',contacts:[]});
+  save(); renderSettings();
+}
+function quickAddUnit() {
+  const input = document.getElementById('quickAdd');
+  const parts = input.value.trim().split(/[,，]/).map(s=>s.trim());
+  if(!parts[0]) { showToast('請輸入門牌'); return; }
+  if(units.find(u=>u.door===parts[0])) { showToast('門牌已存在'); return; }
+  units.push({door:parts[0], name:parts[1]||'', contacts:[]});
+  units.sort((a,b)=>a.door.localeCompare(b.door,'zh-TW',{numeric:true}));
+  save(); renderSettings(); input.value='';
+  showToast(`✓ ${parts[0]} 已新增`);
+}
+
+// ── Data management ──
+function exportJSON() {
+  const sigReceipts = safeGet('mr2_sigreceipts') || [];
+  const data = {units, packages, sigReceipts, exported: new Date().toISOString()};
+  downloadFile(JSON.stringify(data,null,2), `收發備份_${today().replace(/\//g,'')}.json`, 'application/json');
+  showToast('JSON 已下載');
+}
+function importJSON(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const r = new FileReader();
+  r.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(data.units) units=data.units;
+      if(data.packages) packages=data.packages;
+      if(data.sigReceipts) safeSet('mr2_sigreceipts', data.sigReceipts);
+      save(); showToast('匯入成功');
+      renderUnitGrid(); updateBadge();
+    } catch(err) { showToast('檔案格式錯誤'); }
+  };
+  r.readAsText(file); e.target.value='';
+}
+function clearAll() {
+  if(!confirm('確定清除所有資料？門牌和紀錄都會刪除，無法復原。')) return;
+  units=JSON.parse(JSON.stringify(DEFAULT_UNITS)); packages=[];
+  safeSet('mr2_sigreceipts', []);
+  save(); renderUnitGrid(); updateBadge(); showToast('已清除');
+}
+
+// ═══ CAMERA BARCODE SCANNER ═══
+let scanStream = null;
+let scanAnimFrame = null;
+
+function openScanner() {
+  const overlay = document.getElementById('scannerOverlay');
+  overlay.classList.add('show');
+  
+  const video = document.getElementById('scanVideo');
+  const statusEl = document.getElementById('scannerStatus');
+  statusEl.textContent = '啟動鏡頭中...';
+  
+  // Check if BarcodeDetector is available (Chrome, Edge, Android)
+  const hasBarcodeAPI = 'BarcodeDetector' in window;
+  
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+  }).then(stream => {
+    scanStream = stream;
+    video.srcObject = stream;
+    video.play();
+    statusEl.textContent = '對準條碼，自動辨識...';
+    
+    if (hasBarcodeAPI) {
+      // Use native BarcodeDetector
+      const detector = new BarcodeDetector({ formats: ['code_128','code_39','ean_13','ean_8','qr_code','data_matrix','codabar','itf','upc_a','upc_e'] });
+      function scanFrame() {
+        if (!scanStream) return;
+        detector.detect(video).then(barcodes => {
+          if (barcodes.length > 0) {
+            onBarcodeDetected(barcodes[0].rawValue);
+            return;
+          }
+          scanAnimFrame = requestAnimationFrame(scanFrame);
+        }).catch(() => {
+          scanAnimFrame = requestAnimationFrame(scanFrame);
+        });
+      }
+      video.onplaying = () => { scanFrame(); };
+    } else {
+      // Fallback: manual capture with canvas + no auto-detect
+      statusEl.textContent = '此瀏覽器不支援自動辨識，請改用手動輸入或換 Chrome 瀏覽器';
+    }
+  }).catch(err => {
+    console.error('Camera error:', err);
+    statusEl.textContent = '無法開啟鏡頭，請確認已授權相機權限';
+  });
+}
+
+function onBarcodeDetected(value) {
+  if (!value) return;
+  document.getElementById('trackInput').value = value;
+  document.getElementById('scanStatus').textContent = `✓ 已掃描：${value}`;
+  closeScanner();
+  document.getElementById('recipientInput').focus();
+  showToast(`掃描成功：${value}`);
+}
+
+function closeScanner() {
+  document.getElementById('scannerOverlay').classList.remove('show');
+  if (scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+  const video = document.getElementById('scanVideo');
+  video.srcObject = null;
+}
+
+// ═══ INIT ═══
+renderUnitGrid();
+updateBadge();
+
+// Set today's date as default in search
+document.getElementById('searchDate').value = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
